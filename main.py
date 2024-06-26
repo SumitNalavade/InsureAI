@@ -97,8 +97,8 @@ def process_file(*, file: AskFileResponse) -> List[Document]:
         print("LOADED")
 
         text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=10000,
-            chunk_overlap=50
+            chunk_size=100000000,
+            chunk_overlap=100
         )
         docs = text_splitter.split_documents(documents)
         print("SPLIT")

@@ -1,7 +1,34 @@
-import Humana_Logo from "./assets/humana-logo.png";
+import { v4 as uuid } from 'uuid';;
+import { FileUploader } from "react-drag-drop-files";
 import { FiPlus } from "react-icons/fi";
 
+import useAppStore from './useAppStore';
+import Humana_Logo from "./assets/humana-logo.png";
+
+const fileTypes = ['PDF'];
+
 function App() {
+  const uploadedFiles = useAppStore(state => state.uploadedFiles);
+  const setUploadedFiles = useAppStore(state => state.setUploadedFiles);
+
+  const selectedFile = useAppStore(state => state.selectedFile);
+  const setSelectedFile = useAppStore(state => state.setSelectedFile);
+
+  const handleFileUpload = (file: File) => {
+    const fileUrl = URL.createObjectURL(file);
+
+    const newFile = {
+      id: uuid(),
+      url: fileUrl,
+      file
+    }
+
+    setUploadedFiles([...uploadedFiles, newFile]);
+    setSelectedFile(newFile);
+  };
+
+  console.log(uploadedFiles.reverse());
+
   return (
     <div className='w-full h-screen flex flex-col justify-between'>
       <div className="navbar px-12 py-6 text-black">
@@ -35,25 +62,38 @@ function App() {
       <div className="flex w-full h-screen">
         <div className="w-1/6 bg-gray-100 p-2 space-y-4">
           <div className="flex gap-2 justify-between items-center">
-            <button className="btn rounded-xl md:w-full bg-white border-none text-black shadow-md hover:bg-gray-100">
-              <FiPlus /> New Chat
-            </button>
+
+            <div className='w-full h-full'>
+              <FileUploader
+                handleChange={handleFileUpload}
+                name="file"
+                types={fileTypes}
+                className={'w-full h-full border-none outline-none'}
+              >
+                <button
+                  className="btn rounded-xl md:w-full bg-white border-none text-black shadow-md hover:bg-gray-100 w-full h-full"
+                >
+                  <FiPlus />
+                  <p>New Chat</p>
+                </button>
+              </FileUploader>
+            </div>
+
+
           </div>
 
-          <div className="flex gap-2 justify-between items-center">
-            <button className="btn rounded-xl md:w-full bg-[#78BE20] text-white border-none shadow-md hover:bg-gray-100">
-              <p>untitled document.pdf</p>
-            </button>
-          </div>
-
-          <div className="flex gap-2 justify-between items-center">
-            <button className="btn rounded-xl md:w-full bg-[#78BE20] text-white border-none shadow-md hover:bg-gray-100">
-              <p>untitled document 2.pdf</p>
-            </button>
-          </div>
+          {uploadedFiles.toReversed().map((elm, index) => (
+            <div key={index} className="flex gap-2 justify-between items-center" onClick={() => setSelectedFile(elm)}>
+              <button className="btn rounded-xl md:w-full bg-[#78BE20] text-white border-none shadow-md hover:bg-gray-100">
+                <p className='truncate'>{elm.file.name}</p>
+              </button>
+            </div>
+          ))}
         </div>
         <div className="w-2/5 bg-white">
-          <p>2</p>
+          {selectedFile && <object data={selectedFile.url} type="application/pdf" width="100%" height="100%">
+            <p>Alternative text - include a link <a href="https://www.clickdimensions.com/links/TestPDFfile.pdf">to the PDF!</a></p>
+          </object>}
         </div>
         <div className="w-3/5 bg-gray-100">
           <p>3</p>

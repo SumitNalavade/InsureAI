@@ -1,4 +1,5 @@
 import Humana_Logo from "./assets/humana-logo.png";
+import { FiPlus } from "react-icons/fi";
 
 function App() {
   return (
@@ -32,8 +33,24 @@ function App() {
       </div>
 
       <div className="flex w-full h-screen">
-        <div className="w-1/6 bg-gray-100">
-          <p>1</p>
+        <div className="w-1/6 bg-gray-100 p-2 space-y-4">
+          <div className="flex gap-2 justify-between items-center">
+            <button className="btn rounded-xl md:w-full bg-white border-none text-black shadow-md hover:bg-gray-100">
+              <FiPlus /> New Chat
+            </button>
+          </div>
+
+          <div className="flex gap-2 justify-between items-center">
+            <button className="btn rounded-xl md:w-full bg-[#78BE20] text-white border-none shadow-md hover:bg-gray-100">
+              <p>untitled document.pdf</p>
+            </button>
+          </div>
+
+          <div className="flex gap-2 justify-between items-center">
+            <button className="btn rounded-xl md:w-full bg-[#78BE20] text-white border-none shadow-md hover:bg-gray-100">
+              <p>untitled document 2.pdf</p>
+            </button>
+          </div>
         </div>
         <div className="w-2/5 bg-white">
           <p>2</p>

@@ -23,7 +23,7 @@ from langchain.vectorstores import Chroma
 from langchain.vectorstores.base import VectorStore
 from langchain.schema.embeddings import Embeddings
 from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
-from langsmith import traceable
+#from langsmith import traceable
 
 
 

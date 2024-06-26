@@ -1,1 +1,0 @@
-Run program in project terminal with: chainlit run main.py -w --port 8080

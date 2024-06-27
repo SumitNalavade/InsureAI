@@ -18,27 +18,51 @@ import logging
 
 logging.basicConfig(level=logging.DEBUG)
 
+AZURE_OPENAI_API_KEY = "8562072bb6dc4088aaeb5e7495a5ace3"
+AZURE_OPENAI_ENDPOINT = "https://mlp-npe-hackathon-openai.openai.azure.com/"
+AZURE_OPENAI_DEPLOYMENT_NAME = "mlp-genai-npe-gpt-4o-hackathon2024-7"
+
+# Construct the endpoint URL
+AZURE_OPENAI_COMPLETION_URL = f"{AZURE_OPENAI_ENDPOINT}openai/deployments/{AZURE_OPENAI_DEPLOYMENT_NAME}/chat/completions?api-version=2024-02-01"
+
+print(f"Completion URL: {AZURE_OPENAI_COMPLETION_URL}")  # Debug print
+
 class CustomLLM(LLM):
     def _call(self, prompt: str, stop: Optional[List[str]] = None, run_manager: Optional[Any] = None, **kwargs: Any) -> str:
-        url = 'https://striderai.azurewebsites.net/api/Strider/AskStrider'
-        request = {"user": "sahil :)", "message": prompt}
-        logging.debug(f"Sending request to API: {request}")
-        response = requests.post(url, json=request)
+        headers = {
+            "Content-Type": "application/json",
+            "api-key": AZURE_OPENAI_API_KEY
+        }
+        request_data = {
+            "messages": [
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": prompt}
+            ],
+            "max_tokens": 1500,
+            "temperature": 0.5,
+            "top_p": 1,
+            "frequency_penalty": 0,
+            "presence_penalty": 0,
+            "stop": stop
+        }
+        print(f"Request Data: {request_data}")  # Debug print
+        response = requests.post(AZURE_OPENAI_COMPLETION_URL, headers=headers, json=request_data)
+        print(f"Response Status Code: {response.status_code}")  # Debug print
         if response.status_code == 200:
             data = response.json()
-            logging.debug(f"Received response from API: {data}")
-            return data['response']
+            logging.debug(f"Received response from Azure OpenAI API: {data}")
+            return data['choices'][0]['message']['content']
         else:
-            logging.error(f"Error: {response.status_code}")
-            raise ValueError(f"Error: {response.status_code}")
+            logging.error(f"Error: {response.status_code} - {response.text}")
+            raise ValueError(f"Error: {response.status_code} - {response.text}")
 
     @property
     def _identifying_params(self) -> Dict[str, Any]:
-        return {"model_name": "Strider"}
+        return {"model_name": "AzureOpenAI"}
 
     @property
     def _llm_type(self) -> str:
-        return "custom"
+        return "azure_openai"
 
 def process_file(file_path, file_type) -> List[Document]:
     if file_type not in ["application/pdf", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]:
@@ -47,10 +71,10 @@ def process_file(file_path, file_type) -> List[Document]:
     loader = PDFPlumberLoader(file_path) if file_type == "application/pdf" else UnstructuredExcelLoader(file_path)
     documents = loader.load()
 
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=100000000, chunk_overlap=100)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=2000, chunk_overlap=200)
     docs = text_splitter.split_documents(documents)
     for i, doc in enumerate(docs):
-        doc.metadata["source"] = f"source_{i}"
+        doc.metadata["source"] = f"Page {doc.metadata.get('page_number', i+1)}"
 
     if not docs:
         raise ValueError("File parsing failed.")

@@ -1,0 +1,25 @@
+<!-- app/templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload and Prompt</title>
+</head>
+<body>
+    <h1>Upload a File and Send a Prompt</h1>
+    <form action="/" method="post" enctype="multipart/form-data">
+        <label for="file">Upload file:</label>
+        <input type="file" name="file" id="file" accept=".pdf, .xlsx" required>
+        <br><br>
+        <label for="prompt">Enter your prompt:</label>
+        <textarea name="prompt" id="prompt" rows="4" cols="50" required></textarea>
+        <br><br>
+        <button type="submit">Submit</button>
+    </form>
+    {% if result %}
+    <h2>Result:</h2>
+    <p>{{ result }}</p>
+    {% endif %}
+</body>
+</html>

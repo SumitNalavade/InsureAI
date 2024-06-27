@@ -15,21 +15,23 @@ from chromadb.config import Settings
 from langchain.vectorstores import Chroma
 from langchain.vectorstores.base import VectorStore
 from langchain_core.language_models.llms import LLM
+from flask_cors import CORS  # Import CORS
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
 
-OPENAI_API_KEY = ""
-OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
+OPENAI_API_KEY = "8562072bb6dc4088aaeb5e7495a5ace3"
+OPENAI_API_URL = "https://mlp-npe-hackathon-openai.openai.azure.com/openai/deployments/mlp-genai-npe-gpt-4o-hackathon2024-7/chat/completions?api-version=2024-02-01"
 
 app = Flask(__name__)
+CORS(app)
 
 
 class CustomLLM(LLM):
     def _call(self, prompt: str, stop: Optional[List[str]] = None, run_manager: Optional[Any] = None, **kwargs: Any) -> str:
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {OPENAI_API_KEY}"
+            "api-key": f"{OPENAI_API_KEY}"
         }
         request_data = {
             "model": "gpt-4o",  # or whichever model you prefer
@@ -119,10 +121,10 @@ async def process_prompt(file_path, file_type, prompt):
 
 @app.route('/api/process_prompt', methods=['POST'])
 def process_prompt_route():
-    return jsonify({
-        "answer": "Sumit Nalavade is a Computer Engineering student at Texas A&M University, College Station, expected to graduate in May 2026 with a GPA of 3.88. He has experience as a Software Engineering Intern at Humana, where he collaborated on developing provider-facing applications using tools like Palantir Foundry, Azure Synapse, and Databricks. He also worked as a Full Stack Software Engineer at Texas A&M University Health Science Center, contributing to a project called OliviaHealth aimed at enhancing maternal and familial care. His technical skills include React.js, TypeScript, Python, Flask, SQLAlchemy, and various other technologies. Additionally, he has served as an Undergraduate Teaching Assistant, a Front End Developer at Crypt Cloud, and has led multiple notable projects such as Maroon Rides and Gradual Grades. Sumit has also held leadership positions in the Aggie Coding Club and the Texas A&M Computing Society.\n\n",
-        "sources": "Page 1, Page 2, Page 3"
-    })
+    # return jsonify({
+    #     "answer": "Here are the key takeaways from the document:\n\n1. **Remote Internship Opportunities**: Humana has been offering remote internships since 2020 and ensures plenty of networking and engagement opportunities for interns to feel included and welcome.\n\n2. **Equipment Provided**: Interns will receive standard equipment including a laptop, monitor, connection cable, mouse, and keyboard. Return labels and boxes will be provided for returning the equipment at the end of the internship.\n\n3. **Work Locations**: Interns have the option to work remotely, in the Louisville, KY office (for first-time/entry interns), or in the Washington D.C. office (for select advanced/returning interns).\n\n4. **Networking and Social Activities**: There will be multiple networking opportunities and a robust social committee structure for interns to get involved in various activities such as the intern yearbook, intern Olympics, volunteering, and well-being.\n\n5. **Daily Tools Used**: Common daily tools used at Humana include Microsoft Teams, Outlook, Zoom, and Azure DevOps.\n\n6. **Project Assignments**: Projects are assigned based on the intern's interests and skillset. If an intern is unhappy with their project, they should speak to their early career champion to find the best path forward.\n\n",
+    #     "sources": "Page 2, Page 3, Page 4"
+    # })
 
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400

@@ -20,7 +20,7 @@ import logging
 
 logging.basicConfig(level=logging.DEBUG)
 
-OPENAI_API_KEY = "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"
+OPENAI_API_KEY = ""
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 
 app = Flask(__name__)

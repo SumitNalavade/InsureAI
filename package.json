@@ -1,0 +1,35 @@
+{
+  "name": "healthharmony",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+   "flask-dev": "pip install -r requirements.txt && python -m flask --app src/pages/api/index.py run -p 5328",
+    "next-dev": "next dev",
+    "dev": "concurrently \"npm run next-dev\" \"npm run flask-dev\"",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@types/uuid": "^10.0.0",
+    "next": "14.2.4",
+    "react": "^18",
+    "react-dom": "^18",
+    "react-drag-drop-files": "^2.3.10",
+    "concurrently": "^8.1.0",
+    "react-icons": "^5.2.1",
+    "uuid": "^10.0.0",
+    "zustand": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "daisyui": "^4.12.10",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.4",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
+  }
+}

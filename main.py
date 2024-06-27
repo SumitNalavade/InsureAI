@@ -24,32 +24,49 @@ from langchain.vectorstores.base import VectorStore
 from langchain.schema.embeddings import Embeddings
 from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 #from langsmith import traceable
+import logging
 
+logging.basicConfig(level=logging.DEBUG)
+
+
+AZURE_OPENAI_API_KEY = "8562072bb6dc4088aaeb5e7495a5ace3"
+AZURE_OPENAI_ENDPOINT = "https://mlp-npe-hackathon-openai.openai.azure.com/"
+AZURE_OPENAI_DEPLOYMENT_NAME = "mlp-genai-npe-gpt-4o-hackathon2024-7"
+
+# Construct the endpoint URL
+AZURE_OPENAI_COMPLETION_URL = f"{AZURE_OPENAI_ENDPOINT}openai/deployments/{AZURE_OPENAI_DEPLOYMENT_NAME}/chat/completions?api-version=2024-02-01"
 
 
 #Stider as a Custom LLM
 class CustomLLM(LLM):
 
-    def _call(
-            self,
-            prompt: str,
-            stop: Optional[List[str]] = None,
-            run_manager: Optional[CallbackManagerForLLMRun] = None,
-            **kwargs: Any,
-    ) -> str:
-        url = 'https://striderai.azurewebsites.net/api/Strider/AskStrider'
-        request = {
-            "user": "sahil :)",
-            "message": prompt
+    def _call(self, prompt: str, stop: Optional[List[str]] = None, run_manager: Optional[Any] = None, **kwargs: Any) -> str:
+        headers = {
+            "Content-Type": "application/json",
+            "api-key": AZURE_OPENAI_API_KEY
         }
-        response = requests.post(url, json=request)  # Use 'post' for POST requests
+        request_data = {
+            "messages": [
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": prompt}
+            ],
+            "max_tokens": 1500,
+            "temperature": 0.5,
+            "top_p": 1,
+            "frequency_penalty": 0,
+            "presence_penalty": 0,
+            "stop": stop
+        }
+        print(f"Request Data: {request_data}")  # Debug print
+        response = requests.post(AZURE_OPENAI_COMPLETION_URL, headers=headers, json=request_data)
+        print(f"Response Status Code: {response.status_code}")  # Debug print
         if response.status_code == 200:
-            # print("works")
             data = response.json()
-            # Process the data
-            return data['response']
+            logging.debug(f"Received response from Azure OpenAI API: {data}")
+            return data['choices'][0]['message']['content']
         else:
-            raise ValueError(f"Error: {response.status_code}")
+            logging.error(f"Error: {response.status_code} - {response.text}")
+            raise ValueError(f"Error: {response.status_code} - {response.text}")
 
     # def _stream(
     #         self,
@@ -115,7 +132,7 @@ def process_file(*, file: AskFileResponse) -> List[Document]:
 
 def create_search_engine(*, docs: List[Document], embeddings: Embeddings) -> VectorStore:
 
-    client = chromadb.EphemeralClient()
+    client = chromadb.PersistentClient(path="C:\\Users\\SKS3298\\OneDrive - Humana\\Desktop\\miniDB")
     client_settings=Settings(
         allow_reset=True,
         anonymized_telemetry=False
@@ -126,7 +143,7 @@ def create_search_engine(*, docs: List[Document], embeddings: Embeddings) -> Vec
         client_settings=client_settings
     )
 
-    search_engine._client.reset()
+    #search_engine._client.reset()
     search_engine = Chroma.from_documents(
         client=client,
         documents=docs,
@@ -137,49 +154,49 @@ def create_search_engine(*, docs: List[Document], embeddings: Embeddings) -> Vec
 
 @cl.on_chat_start
 async def on_chat_start():
-    docs = None
-    for i in range(2):
-        files = None
-        while files is None:
-            files = await cl.AskFileMessage(
-                content="Please upload the file you want to ask questions against",
-                accept=['application/pdf', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
-                max_size_mb=20,
-                max_files=2
-            ).send()
-        file = files[0]
-        msg = cl.Message(content=f"Processing `{file.name}`...")
-        await msg.send()
-        if docs == None:
-            docs = process_file(file=file)
-        else:
-            docs += process_file(file=file)
-        print("FILE PROCESSED")
-
-        #docs = process_file(file=file)
-        cl.user_session.set("docs", docs)
-        msg.content = f"`{file.name}` processed. Loading ..."
-        await msg.update()
-        os.environ["ALLOW_RESET"] = "True"
-        #embeddings = SentenceTransformer('paraphrase-MiniLM-L6-v2')
-        #embeddings = GPT2TokenizerFast.from_pretrained('Xenova/text-embedding-ada-002')
-        #embeddings = gensim.downloader.load('glove-twitter-25')
-        #embeddings = TogetherEmbeddings(model="togethercomputer/m2-bert-80M-8k-retrieval")
-        #embeddings = TensorflowHubEmbeddings()
-        embeddings = FastEmbedEmbeddings(model_name="BAAI/bge-small-en")
-        #embeddings = OllamaEmbeddings(model="mxbai-embed-large")
-        print("EMBEDDING")
-        try:
-            print("BEFORE SEARCH START")
-            search_engine = await cl.make_async(create_search_engine)(
-                docs=docs, embeddings=embeddings
-            )
-            print("SEARCH ENGINE")
-        except Exception as e:
-            await cl.Message(content=f"Error: {e}").send()
-            raise SystemError
-        msg.content = f"`{file.name}` loaded. You can now ask questions!"
-        await msg.update()
+    # docs = None
+    # for i in range(1):
+    #     files = None
+    #     while files is None:
+    #         files = await cl.AskFileMessage(
+    #             content="Please upload the file you want to ask questions against",
+    #             accept=['application/pdf', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+    #             max_size_mb=20,
+    #             max_files=2
+    #         ).send()
+    #     file = files[0]
+    #     msg = cl.Message(content=f"Processing `{file.name}`...")
+    #     await msg.send()
+    #     if docs == None:
+    #         docs = process_file(file=file)
+    #     else:
+    #         docs += process_file(file=file)
+    #     print("FILE PROCESSED")
+    # 
+    #     #docs = process_file(file=file)
+    #     cl.user_session.set("docs", docs)
+    #     msg.content = f"`{file.name}` processed. Loading ..."
+    #     await msg.update()
+    #     os.environ["ALLOW_RESET"] = "True"
+    #     #embeddings = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+    #     #embeddings = GPT2TokenizerFast.from_pretrained('Xenova/text-embedding-ada-002')
+    #     #embeddings = gensim.downloader.load('glove-twitter-25')
+    #     #embeddings = TogetherEmbeddings(model="togethercomputer/m2-bert-80M-8k-retrieval")
+    #     #embeddings = TensorflowHubEmbeddings()
+    #     embeddings = FastEmbedEmbeddings(model_name="BAAI/bge-small-en")
+    #     #embeddings = OllamaEmbeddings(model="mxbai-embed-large")
+    #     print("EMBEDDING")
+    #     try:
+    #         print("BEFORE SEARCH START")
+    #         search_engine = await cl.make_async(create_search_engine)(
+    #             docs=docs, embeddings=embeddings
+    #         )
+    #         print("SEARCH ENGINE")
+    #     except Exception as e:
+    #         await cl.Message(content=f"Error: {e}").send()
+    #         raise SystemError
+    #     msg.content = f"`{file.name}` loaded. You can now ask questions!"
+    #     await msg.update()
 
     model = CustomLLM()
     # prompt = ChatPromptTemplate.from_messages(
@@ -194,7 +211,17 @@ async def on_chat_start():
     #         )
     #     ]
     # )
-
+    #search_engine = chromadb.PersistentClient(path="C:\\Users\\SKS3298\\OneDrive - Humana\\Desktop\\miniDB")
+    try:
+        print("BEFORE SEARCH START")
+        embeddings = FastEmbedEmbeddings(model_name="BAAI/bge-small-en")
+        search_engine = await cl.make_async(create_search_engine)(
+            docs=[], embeddings=embeddings
+        )
+        print("SEARCH ENGINE")
+    except Exception as e:
+        await cl.Message(content=f"Error: {e}").send()
+        raise SystemError
     chain= RetrievalQAWithSourcesChain.from_chain_type(
         llm = model,
         chain_type = 'stuff',

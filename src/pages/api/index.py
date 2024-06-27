@@ -20,8 +20,8 @@ import logging
 
 logging.basicConfig(level=logging.DEBUG)
 
-OPENAI_API_KEY = ""
-OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
+OPENAI_API_KEY = "8562072bb6dc4088aaeb5e7495a5ace3"
+OPENAI_API_URL = "https://mlp-npe-hackathon-openai.openai.azure.com/openai/deployments/mlp-genai-npe-gpt-4o-hackathon2024-7/chat/completions?api-version=2024-02-01"
 
 app = Flask(__name__)
 CORS(app)
@@ -31,7 +31,7 @@ class CustomLLM(LLM):
     def _call(self, prompt: str, stop: Optional[List[str]] = None, run_manager: Optional[Any] = None, **kwargs: Any) -> str:
         headers = {
             "Content-Type": "application/json",
-            "authorization": f"Bearer {OPENAI_API_KEY}"
+            "api-key": f"{OPENAI_API_KEY}"
         }
         request_data = {
             "model": "gpt-4o",  # or whichever model you prefer

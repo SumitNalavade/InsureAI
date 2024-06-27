@@ -36,7 +36,6 @@ __pycache__/
 *.pyd
 .Python
 env/
-venv/
 ENV/
 env.bak/
 venv.bak/

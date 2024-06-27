@@ -133,7 +133,7 @@ def process_prompt_route():
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
 
-    prompt = request.form.get('prompt', '')
+    prompt = request.form.get('prompt')
     file_type = file.content_type
     file_path = os.path.join("/tmp", file.filename)
     file.save(file_path)

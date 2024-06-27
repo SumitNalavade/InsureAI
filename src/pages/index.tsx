@@ -1,4 +1,5 @@
 import { FormEvent, useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import Image from 'next/image';
 import { v4 as uuid } from 'uuid';
 import { FileUploader } from "react-drag-drop-files";
@@ -25,34 +26,10 @@ function App() {
     evt.preventDefault();
     if (!selectedFile) return;
     const question: IConversation = { text: input, type: 'question' };
-    
+
     setConversations(conversations => [...conversations, question]);
-    
-    await getResponse(selectedFile?.file, question.text);
-  }
-  
-  const getResponse = async (file: File, question: string) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('prompt', question);
-    
-    try {
-      const response = await fetch('http://127.0.0.1:5328/api/process_prompt', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      const answer: IConversation = { text: result.answer, type: 'answer' };
-      
-      setConversations(conversations => [...conversations, answer]);
-    } catch (error) {
-      console.error('Error processing file:', error);
-    }
+
+    await mutation.mutate({file: selectedFile?.file, question: question.text});
   }
 
   const handleFileUpload = async (file: File) => {
@@ -67,6 +44,38 @@ function App() {
     setUploadedFiles([...uploadedFiles, newFile]);
     setSelectedFile(newFile);
   };
+
+  const mutation = useMutation({
+    mutationFn: async ({ file, question }: { file: File, question: string }) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('prompt', question);
+
+      const response = await fetch('http://127.0.0.1:5328/api/process_prompt', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return result;
+    },
+    onSuccess: (result) => {
+      const answer: IConversation = { text: result.answer, type: 'answer' };
+      setConversations(conversations => [...conversations, answer]);
+      // Handle other success logic
+    },
+    onError: (error) => {
+      // Handle error logic
+      console.error('Error:', error);
+    },
+    onSettled: () => {
+      setInput('');
+    }
+  });
 
   return (
     <div className='w-full h-screen flex flex-col justify-between'>

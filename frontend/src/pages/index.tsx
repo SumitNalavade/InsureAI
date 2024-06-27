@@ -1,9 +1,10 @@
+import Image from 'next/image';
 import { v4 as uuid } from 'uuid';
 import { FileUploader } from "react-drag-drop-files";
 import { FiPlus } from "react-icons/fi";
 
-import useAppStore from './useAppStore';
-import Humana_Logo from "./assets/humana-logo.png";
+import useAppStore from '../useAppStore';
+import Humana_Logo from "../assets/humana-logo.png";
 
 const fileTypes = ['PDF'];
 
@@ -29,10 +30,10 @@ function App() {
 
   return (
     <div className='w-full h-screen flex flex-col justify-between'>
-      <div className="navbar px-12 py-6 text-black">
+      <div className="navbar px-12 py-4 text-black">
         <div className="navbar-start">
           <a href="/">
-            <img src={Humana_Logo} alt="Texas A&M University Logo" className="btn btn-ghost normal-case object-contain transform scale-150 hover:bg-transparent hover:text-current" />
+            <Image src={Humana_Logo} alt='Humana H Logo' width={200} />
           </a>
         </div>
 

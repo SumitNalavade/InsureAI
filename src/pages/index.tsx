@@ -1,15 +1,31 @@
-import { FormEvent, useState, useRef, useEffect, MouseEvent } from 'react';
+import { FormEvent, useState, useRef, useEffect } from 'react';
+import { getStorage, ref, uploadBytes, getDownloadURL, getBlob } from "firebase/storage";
+import { initializeApp } from "firebase/app";
 import { useMutation } from '@tanstack/react-query';
 import Image from 'next/image';
 import { v4 as uuid } from 'uuid';
 import { FileUploader } from "react-drag-drop-files";
-import { FiPlus, FiTrash } from "react-icons/fi";
+import { FiPlus } from "react-icons/fi";
 
 import useAppStore from '../useAppStore';
-import { IConversation, IFile } from '@/utils/interfaces';
+import { IConversation } from '@/utils/interfaces';
 import Humana_Logo from "../assets/humana-logo.png";
 
 const fileTypes = ['PDF'];
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCp9haylJ8faYTfFnWFR-WTFlFC9Rt_JpA",
+  authDomain: "healthharmony-d0b06.firebaseapp.com",
+  projectId: "healthharmony-d0b06",
+  storageBucket: "healthharmony-d0b06.appspot.com",
+  messagingSenderId: "827302285181",
+  appId: "1:827302285181:web:de7e812ff6bb9cc1408614"
+};
+
+
+const app = initializeApp(firebaseConfig);
+const storage = getStorage(app);
+
 
 function App() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -22,19 +38,79 @@ function App() {
 
   const [conversations, setConversations] = useState<IConversation[]>([])
 
-  const [input, setInput] = useState('');
+  const [questionInput, setQuestionInput] = useState('');
+  const [searchInput, setSearchInput] = useState('');
 
   const handleQuestionAsked = async (evt: FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
     if (!selectedFile) return;
-    const question: IConversation = { text: input, type: 'question' };
+    const question: IConversation = { text: questionInput, type: 'question' };
 
     setConversations(conversations => [...conversations, question]);
 
     await mutation.mutate({ file: selectedFile?.file, question: question.text });
   }
 
+  const handleSearch = async (evt: FormEvent<HTMLFormElement>) => {
+    evt.preventDefault();
+    const filePath = `pdfs/${searchInput}.pdf`;
+    const storageRef = ref(storage, filePath);
+
+    try {
+      const blob = await getBlob(storageRef);
+
+      const fileUrl = URL.createObjectURL(blob);
+
+      const newFile = {
+        id: uuid(),
+        url: fileUrl,
+        file: blob as File
+      };
+
+      reset();
+
+      setUploadedFiles([...uploadedFiles, newFile]);
+      setSelectedFile(newFile);
+    } catch (error) {
+      if (error.code === 'storage/object-not-found') {
+        console.error('File not found');
+      } else {
+        console.error('Error getting download URL:', error);
+      }
+    }
+  };
+
+  const checkFileExists = async (filePath: string) => {
+    const storageRef = ref(storage, filePath);
+    try {
+      const url = await getDownloadURL(storageRef);
+      return url;
+    } catch (error: any) {
+      if (error.code === 'storage/object-not-found') {
+        return null; // File does not exist
+      } else {
+        throw error; // Some other error occurred
+      }
+    }
+  };
+
   const handleFileUpload = async (file: File) => {
+    const filePath = `pdfs/${file.name}`;
+    const existingUrl = await checkFileExists(filePath);
+
+    if (existingUrl) {
+      console.log('File already exists at', existingUrl);
+    } else {
+      const storageRef = ref(storage, filePath);
+      uploadBytes(storageRef, file).then((snapshot) => {
+        getDownloadURL(snapshot.ref).then((downloadURL) => {
+          console.log('File available at', downloadURL);
+        }).catch((error) => {
+        });
+      }).catch((error) => {
+      });
+    }
+
     const fileUrl = URL.createObjectURL(file);
 
     const newFile = {
@@ -43,22 +119,16 @@ function App() {
       file
     };
 
+    reset();
+
     setUploadedFiles([...uploadedFiles, newFile]);
     setSelectedFile(newFile);
-    setConversations([]);
-    setInput('');
   };
 
-  const handleFileDelete = (evt: MouseEvent<HTMLButtonElement>) => {    
-    evt.stopPropagation();
-    
-    console.log('Before:', { selectedFile, uploadedFiles });
-
-    setUploadedFiles(uploadedFiles.filter(elm => elm.id !== selectedFile?.id));
-
+  const reset = () => {
     setSelectedFile(null);
-    setInput('');
-    setConversations([]);
+    setQuestionInput('');
+    setConversations([])
   }
 
   const mutation = useMutation({
@@ -88,7 +158,7 @@ function App() {
       console.error('Error:', error);
     },
     onSettled: () => {
-      setInput('');
+      setQuestionInput('');
     }
   });
 
@@ -103,7 +173,7 @@ function App() {
 
   return (
     <div className='w-full h-screen flex flex-col justify-between'>
-      <div className="navbar px-12 py-4 text-black">
+      <div className="navbar px-12 py-4 text-black bg-white">
         <div className="navbar-start">
           <a href="/">
             <Image src={Humana_Logo} alt='Humana H Logo' width={200} />
@@ -130,7 +200,7 @@ function App() {
         </div>
       </div>
 
-      { mutation.error && <div className="relative">
+      {mutation.error && <div className="relative">
         <div className="z-10 absolute top-0 left-0 w-full h-full"></div>
 
         <div className="z-20 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 p-4 rounded-lg w-full max-w-xl">
@@ -139,25 +209,19 @@ function App() {
             <p>Something went wrong, please try again later!</p>
           </div>
         </div>
-      </div> }
+      </div>}
 
       <div className="flex w-full max-h-full h-full overflow-y-hidden">
         <div className="w-1/6 bg-gray-100 p-2 space-y-4">
           <div className="flex gap-2 justify-between items-center">
             <div className='w-full h-full'>
-              <FileUploader
-                handleChange={handleFileUpload}
-                name="file"
-                types={fileTypes}
-                className={'w-full h-full border-none outline-none'}
+              <button
+                className="btn rounded-xl md:w-full bg-white border-none text-black shadow-md hover:bg-gray-100 w-full h-full"
+                onClick={() => reset()}
               >
-                <button
-                  className="btn rounded-xl md:w-full bg-white border-none text-black shadow-md hover:bg-gray-100 w-full h-full"
-                >
-                  <FiPlus />
-                  <p>New Chat</p>
-                </button>
-              </FileUploader>
+                <FiPlus />
+                <p>New Chat</p>
+              </button>
             </div>
           </div>
 
@@ -165,7 +229,6 @@ function App() {
             <div key={index} className="flex gap-2 justify-between items-center" onClick={() => setSelectedFile(elm)}>
               <button className={`btn rounded-xl md:w-full bg-[#78BE20] text-white border-none shadow-md hover:bg-[#5C9A1B] ${selectedFile?.id !== elm.id ? 'bg-opacity-25' : ''}`}>
                 <p className='truncate'>{elm.file.name}</p>
-                { selectedFile?.id === elm.id && <button onClick={handleFileDelete}><FiTrash /></button> }
               </button>
             </div>
           ))}
@@ -175,9 +238,25 @@ function App() {
           {selectedFile ? (<object data={selectedFile.url} type="application/pdf" width="100%" height="100%">
             <p>Alternative text - include a link <a href="https://www.clickdimensions.com/links/TestPDFfile.pdf">to the PDF!</a></p>
           </object>) : (
-            <div className='w-full h-full flex justify-center items-center'>
-              <p>Upload a pdf to see it here!</p>
-            </div>
+            <FileUploader
+              handleChange={handleFileUpload}
+              name="file"
+              types={fileTypes}
+              className={'w-full h-full border-none outline-none'}
+            >
+              <div className='w-full h-full flex flex-col justify-center items-center space-y-3'>
+                <p>Upload a pdf to see it here!</p>
+
+                <p className='text-sm'>Or</p>
+
+                <form onSubmit={handleSearch} className="h-8 mt-2 flex justify-center input-group">
+                  <input placeholder="Search by plan number" onChange={(evt) => (setSearchInput(evt.target.value))} value={searchInput} className="input max-w-3xl w-full mx-auto h-full bg-gray-200 focus:outline-none rounded-full focus:border-none text-center" />
+
+                </form>
+              </div>
+
+
+            </FileUploader>
           )}
         </div>
 
@@ -201,7 +280,7 @@ function App() {
           </div>
 
           <form onSubmit={handleQuestionAsked} className="h-16 mt-2 flex justify-center input-group">
-            <input placeholder="Ask me a question" value={input} onChange={(evt) => setInput(evt.target.value)} className="input max-w-3xl w-full mx-auto h-full bg-gray-200 focus:outline-none rounded-full focus:border-none" />
+            <input placeholder="Ask me a question" value={questionInput} onChange={(evt) => setQuestionInput(evt.target.value)} className="input max-w-3xl w-full mx-auto h-full bg-gray-200 focus:outline-none rounded-full focus:border-none" />
 
           </form>
         </div>

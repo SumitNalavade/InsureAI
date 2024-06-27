@@ -18,22 +18,58 @@ from langchain_core.language_models.llms import LLM
 from flask_cors import CORS  # Import CORS
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
+#
+# OPENAI_API_KEY = ""
+# OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 
-OPENAI_API_KEY = ""
-OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
+AZURE_OPENAI_API_KEY = "8562072bb6dc4088aaeb5e7495a5ace3"
+AZURE_OPENAI_ENDPOINT = "https://mlp-npe-hackathon-openai.openai.azure.com/"
+AZURE_OPENAI_DEPLOYMENT_NAME = "mlp-genai-npe-gpt-4o-hackathon2024-7"
+
+# Construct the endpoint URL
+AZURE_OPENAI_COMPLETION_URL = f"{AZURE_OPENAI_ENDPOINT}openai/deployments/{AZURE_OPENAI_DEPLOYMENT_NAME}/chat/completions?api-version=2024-02-01"
 
 app = Flask(__name__)
 CORS(app)
 
 class CustomLLM(LLM):
-    def _call(self, prompt: str, stop: Optional[List[str]] = None, run_manager: Optional[Any] = None, **kwargs: Any) -> str:
+    # def _call(self, prompt: str, stop: Optional[List[str]] = None, run_manager: Optional[Any] = None, **kwargs: Any) -> str:
+    #     headers = {
+    #         "Content-Type": "application/json",
+    #         "authorization": f"Bearer {OPENAI_API_KEY}"
+    #     }
+    #     request_data = {
+    #         "model": "gpt-4o",  # or whichever model you prefer
+    #         "messages": [
+    #             {"role": "system", "content": "You are a helpful assistant."},
+    #             {"role": "user", "content": prompt}
+    #         ],
+    #         "max_tokens": 1500,
+    #         "temperature": 0.5,
+    #         "top_p": 1,
+    #         "frequency_penalty": 0,
+    #         "presence_penalty": 0,
+    #         "stop": stop
+    #     }
+    #     response = requests.post(
+    #         OPENAI_API_URL, headers=headers, json=request_data)
+    #     if response.status_code == 200:
+    #         data = response.json()
+    #         logging.debug(f"Received response from OpenAI API: {data}")
+    #         return data['choices'][0]['message']['content']
+    #     else:
+    #         logging.error(f"Error: {response.status_code} - {response.text}")
+    #         raise ValueError(
+    #             f"Error: {response.status_code} - {response.text}")
+
+    def _call(self, prompt: str, stop: Optional[List[str]] = None, run_manager: Optional[Any] = None,
+              **kwargs: Any) -> str:
         headers = {
             "Content-Type": "application/json",
-            "authorization": f"Bearer {OPENAI_API_KEY}"
+            "api-key": AZURE_OPENAI_API_KEY
         }
         request_data = {
-            "model": "gpt-4o",  # or whichever model you prefer
             "messages": [
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": prompt}
@@ -45,16 +81,16 @@ class CustomLLM(LLM):
             "presence_penalty": 0,
             "stop": stop
         }
-        response = requests.post(
-            OPENAI_API_URL, headers=headers, json=request_data)
+        print(f"Request Data: {request_data}")  # Debug print
+        response = requests.post(AZURE_OPENAI_COMPLETION_URL, headers=headers, json=request_data)
+        print(f"Response Status Code: {response.status_code}")  # Debug print
         if response.status_code == 200:
             data = response.json()
-            logging.debug(f"Received response from OpenAI API: {data}")
+            logging.debug(f"Received response from Azure OpenAI API: {data}")
             return data['choices'][0]['message']['content']
         else:
             logging.error(f"Error: {response.status_code} - {response.text}")
-            raise ValueError(
-                f"Error: {response.status_code} - {response.text}")
+            raise ValueError(f"Error: {response.status_code} - {response.text}")
 
     @property
     def _identifying_params(self) -> Dict[str, Any]:
@@ -74,7 +110,7 @@ def process_file(file_path, file_type) -> List[Document]:
     documents = loader.load()
 
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=2000, chunk_overlap=200)
+        chunk_size=100000000, chunk_overlap=100)
     docs = text_splitter.split_documents(documents)
     for i, doc in enumerate(docs):
         doc.metadata["source"] = f"Page {doc.metadata.get('page_number', i+1)}"
@@ -120,10 +156,10 @@ async def process_prompt(file_path, file_type, prompt):
 
 @app.route('/api/process_prompt', methods=['POST'])
 def process_prompt_route():
-    return jsonify({
-        "answer": "Here are the key takeaways from the document:\n\n1. **Remote Internship Opportunities**: Humana has been offering remote internships since 2020 and ensures plenty of networking and engagement opportunities for interns to feel included and welcome.\n\n2. **Equipment Provided**: Interns will receive standard equipment including a laptop, monitor, connection cable, mouse, and keyboard. Return labels and boxes will be provided for returning the equipment at the end of the internship.\n\n3. **Work Locations**: Interns have the option to work remotely, in the Louisville, KY office (for first-time/entry interns), or in the Washington D.C. office (for select advanced/returning interns).\n\n4. **Networking and Social Activities**: There will be multiple networking opportunities and a robust social committee structure for interns to get involved in various activities such as the intern yearbook, intern Olympics, volunteering, and well-being.\n\n5. **Daily Tools Used**: Common daily tools used at Humana include Microsoft Teams, Outlook, Zoom, and Azure DevOps.\n\n6. **Project Assignments**: Projects are assigned based on the intern's interests and skillset. If an intern is unhappy with their project, they should speak to their early career champion to find the best path forward.\n\n",
-        "sources": "Page 2, Page 3, Page 4"
-    })
+    # return jsonify({
+    #     "answer": "Here are the key takeaways from the document:\n\n1. **Remote Internship Opportunities**: Humana has been offering remote internships since 2020 and ensures plenty of networking and engagement opportunities for interns to feel included and welcome.\n\n2. **Equipment Provided**: Interns will receive standard equipment including a laptop, monitor, connection cable, mouse, and keyboard. Return labels and boxes will be provided for returning the equipment at the end of the internship.\n\n3. **Work Locations**: Interns have the option to work remotely, in the Louisville, KY office (for first-time/entry interns), or in the Washington D.C. office (for select advanced/returning interns).\n\n4. **Networking and Social Activities**: There will be multiple networking opportunities and a robust social committee structure for interns to get involved in various activities such as the intern yearbook, intern Olympics, volunteering, and well-being.\n\n5. **Daily Tools Used**: Common daily tools used at Humana include Microsoft Teams, Outlook, Zoom, and Azure DevOps.\n\n6. **Project Assignments**: Projects are assigned based on the intern's interests and skillset. If an intern is unhappy with their project, they should speak to their early career champion to find the best path forward.\n\n",
+    #     "sources": "Page 2, Page 3, Page 4"
+    # })
 
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
@@ -134,7 +170,9 @@ def process_prompt_route():
 
     prompt = request.form.get('prompt')
     file_type = file.content_type
-    file_path = os.path.join("/tmp", file.filename)
+    # file_path = os.path.join("/tmp", file.filename)
+    temp_dir = os.path.join(os.environ.get('TEMP', '/tmp'))
+    file_path = os.path.join(temp_dir, file.filename)
     file.save(file_path)
 
     try:

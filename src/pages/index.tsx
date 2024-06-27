@@ -1,9 +1,11 @@
+import { FormEvent, useState } from 'react';
 import Image from 'next/image';
 import { v4 as uuid } from 'uuid';
 import { FileUploader } from "react-drag-drop-files";
 import { FiPlus } from "react-icons/fi";
 
 import useAppStore from '../useAppStore';
+import { IConversation } from '@/utils/interfaces';
 import Humana_Logo from "../assets/humana-logo.png";
 
 const fileTypes = ['PDF'];
@@ -14,6 +16,44 @@ function App() {
 
   const selectedFile = useAppStore(state => state.selectedFile);
   const setSelectedFile = useAppStore(state => state.setSelectedFile);
+
+  const [conversations, setConversations] = useState<IConversation[]>([])
+
+  const [input, setInput] = useState('');
+
+  const handleQuestionAsked = async (evt: FormEvent<HTMLFormElement>) => {
+    evt.preventDefault();
+    if (!selectedFile) return;
+    const question: IConversation = { text: input, type: 'question' };
+    
+    setConversations(conversations => [...conversations, question]);
+    
+    await getResponse(selectedFile?.file, question.text);
+  }
+  
+  const getResponse = async (file: File, question: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('prompt', question);
+    
+    try {
+      const response = await fetch('http://127.0.0.1:5328/api/process_prompt', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      const answer: IConversation = { text: result.answer, type: 'answer' };
+      
+      setConversations(conversations => [...conversations, answer]);
+    } catch (error) {
+      console.error('Error processing file:', error);
+    }
+  }
 
   const handleFileUpload = async (file: File) => {
     const fileUrl = URL.createObjectURL(file);
@@ -26,30 +66,6 @@ function App() {
 
     setUploadedFiles([...uploadedFiles, newFile]);
     setSelectedFile(newFile);
-
-    await processFile(file);
-  };
-
-  const processFile = async (file: File) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('prompt', 'Tell me a little bit about this candidate')
-
-    try {
-      const response = await fetch('http://127.0.0.1:5328/api/process_prompt', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      console.log(result); // Process the result as needed
-    } catch (error) {
-      console.error('Error processing file:', error);
-    }
   };
 
   return (
@@ -109,43 +125,31 @@ function App() {
             </div>
           ))}
         </div>
+
         <div className="w-2/6 bg-white">
           {selectedFile && <object data={selectedFile.url} type="application/pdf" width="100%" height="100%">
             <p>Alternative text - include a link <a href="https://www.clickdimensions.com/links/TestPDFfile.pdf">to the PDF!</a></p>
           </object>}
         </div>
+
         <div className="w-3/6 bg-gray-100 p-2 flex flex-col">
           <div className="flex-grow overflow-y-auto">
-            <div className="chat chat-start">
-              <div className="chat-bubble w-full bg-[#78BE20] bg-opacity-25 text-black">
-                <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Amet facilisis magna etiam tempor orci eu lobortis elementum. Elit at imperdiet dui accumsan sit amet. Urna duis convallis convallis tellus. Magna sit amet purus gravida quis blandit turpis cursus in. Feugiat in fermentum posuere urna nec tincidunt praesent semper. </p>
-              </div>
-            </div>
-            <div className="chat chat-end">
-              <div className="chat-bubble w-full bg-gray-200 text-black">
-                <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Amet facilisis magna etiam tempor orci eu lobortis elementum. Elit at imperdiet dui accumsan sit amet. Urna duis convallis convallis tellus. Magna sit amet purus gravida quis blandit turpis cursus in. Feugiat in fermentum posuere urna nec tincidunt praesent semper. </p>
-              </div>
-            </div>
-            <div className="chat chat-start">
-              <div className="chat-bubble w-full bg-[#78BE20] bg-opacity-25 text-black">
-                <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Amet facilisis magna etiam tempor orci eu lobortis elementum. Elit at imperdiet dui accumsan sit amet. Urna duis convallis convallis tellus. Magna sit amet purus gravida quis blandit turpis cursus in. Feugiat in fermentum posuere urna nec tincidunt praesent semper. </p>
-              </div>
-            </div>
-            <div className="chat chat-end">
-              <div className="chat-bubble w-full bg-gray-200 text-black">
-                <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Amet facilisis magna etiam tempor orci eu lobortis elementum. Elit at imperdiet dui accumsan sit amet. Urna duis convallis convallis tellus. Magna sit amet purus gravida quis blandit turpis cursus in. Feugiat in fermentum posuere urna nec tincidunt praesent semper. </p>
-              </div>
-            </div>
-            <div className="chat chat-start">
-              <div className="chat-bubble w-full bg-[#78BE20] bg-opacity-25 text-black">
-                <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Amet facilisis magna etiam tempor orci eu lobortis elementum. Elit at imperdiet dui accumsan sit amet. Urna duis convallis convallis tellus. Magna sit amet purus gravida quis blandit turpis cursus in. Feugiat in fermentum posuere urna nec tincidunt praesent semper. </p>
-              </div>
-            </div>
+            {conversations.map((elm, index) => (
+              elm.type === 'question' ? (<div key={index} className={`chat chat-end`}>
+                <div className="chat-bubble w-full bg-[#78BE20] bg-opacity-25 text-black">
+                  <p>{elm.text}</p>
+                </div>
+              </div>) : (<div key={index} className={`chat chat-start`}>
+                <div className="chat-bubble w-full bg-gray-200 text-black">
+                  <p>{elm.text}</p>
+                </div>
+              </div>)
+            ))}
           </div>
-          <div className="h-16 mt-2 flex justify-center input-group">
-            <input placeholder="Ask me a question" className="input max-w-3xl w-full mx-auto h-full bg-gray-200 focus:outline-none rounded-full focus:border-none" />
+          <form onSubmit={handleQuestionAsked} className="h-16 mt-2 flex justify-center input-group">
+            <input placeholder="Ask me a question" value={input} onChange={(evt) => setInput(evt.target.value)} className="input max-w-3xl w-full mx-auto h-full bg-gray-200 focus:outline-none rounded-full focus:border-none" />
 
-          </div>
+          </form>
         </div>
       </div>
 

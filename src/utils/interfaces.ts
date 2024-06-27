@@ -3,3 +3,8 @@ export interface IFile {
     url: string
     file: File
 }
+
+export interface IConversation {
+    text: string
+    type: 'question' | 'answer'
+}

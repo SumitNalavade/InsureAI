@@ -16,7 +16,7 @@ from langchain.vectorstores import Chroma
 from langchain.vectorstores.base import VectorStore
 from langchain_core.language_models.llms import LLM
 from flask_cors import CORS  # Import CORS
-#import logging
+import logging
 
 #logging.basicConfig(level=logging.DEBUG)
 #
@@ -94,11 +94,11 @@ class CustomLLM(LLM):
 
     @property
     def _identifying_params(self) -> Dict[str, Any]:
-        return {"model_name": "OpenAI"}
+        return {"model_name": "AzureOpenAI"}
 
     @property
     def _llm_type(self) -> str:
-        return "openai"
+        return "Azureopenai"
 
 
 def process_file(file_path, file_type) -> List[Document]:

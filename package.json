@@ -5,7 +5,7 @@
   "scripts": {
     "flask-dev": "python -m flask --app src/pages/api/index.py run -p 5328",
     "next-dev": "next dev",
-    "dev": "concurrently \"npm run next-dev\" \"npm run flask-dev\"",
+    "dev": "npx concurrently \"npm run next-dev\" \"npm run flask-dev\"",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

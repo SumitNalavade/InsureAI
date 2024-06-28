@@ -16,6 +16,7 @@ from chromadb.config import Settings
 from langchain.vectorstores import Chroma
 from langchain.vectorstores.base import VectorStore
 from langchain_core.language_models.llms import LLM
+from chromadb import Client as ChromaClient
 from flask_cors import CORS
 
 logging.basicConfig(level=logging.DEBUG)
@@ -36,6 +37,7 @@ vector_stores = {}
 
 app = Flask(__name__)
 CORS(app)
+
 
 class CustomLLM(LLM):
     def _call(self, prompt: str, stop: Optional[List[str]] = None, run_manager: Optional[Any] = None, **kwargs: Any) -> str:
@@ -66,7 +68,7 @@ class CustomLLM(LLM):
             logging.error(f"Error: {response.status_code} - {response.text}")
             raise ValueError(
                 f"Error: {response.status_code} - {response.text}")
-        
+
     @property
     def _identifying_params(self) -> Dict[str, Any]:
         return {"model_name": "OpenAI"}
@@ -74,6 +76,7 @@ class CustomLLM(LLM):
     @property
     def _llm_type(self) -> str:
         return "openai"
+
 
 def process_file(file_path, file_type) -> List[Document]:
     if file_type not in ["application/pdf", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]:
@@ -93,6 +96,7 @@ def process_file(file_path, file_type) -> List[Document]:
         raise ValueError("File parsing failed.")
     return docs
 
+
 def create_search_engine(docs: List[Document], embeddings) -> VectorStore:
     client_settings = Settings(
         allow_reset=True,
@@ -107,18 +111,22 @@ def create_search_engine(docs: List[Document], embeddings) -> VectorStore:
 
     return search_engine
 
+
 def get_vector_store(file_id: str) -> Optional[VectorStore]:
     global vector_stores
     return vector_stores.get(file_id)
+
 
 def set_vector_store(file_id: str, vector_store: VectorStore):
     global vector_stores
     vector_stores[file_id] = vector_store
     logging.debug(f"Set vector store for file_id {file_id}")
 
+
 async def process_prompt(file_id: str, file_path: str, file_type: str, prompt: str):
     search_engine = get_vector_store(file_id)
-    logging.debug(f"Retrieved vector store for file_id {file_id}: {search_engine is not None}")
+    logging.debug(f"Retrieved vector store for file_id {
+                  file_id}: {search_engine is not None}")
 
     if search_engine is None:
         docs = process_file(file_path, file_type)
@@ -140,8 +148,9 @@ async def process_prompt(file_id: str, file_path: str, file_type: str, prompt: s
 
     return {"answer": answer, "sources": sources}
 
+
 @app.route('/api/process_prompt', methods=['POST'])
-def process_prompt_route():    
+def process_prompt_route():
     # return jsonify({
     #     "answer": "Here are the key takeaways from the document:\n\n1. **Remote Internship Opportunities**: Humana has been offering remote internships since 2020 and ensures plenty of networking and engagement opportunities for interns to feel included and welcome.\n\n2. **Equipment Provided**: Interns will receive standard equipment including a laptop, monitor, connection cable, mouse, and keyboard. Return labels and boxes will be provided for returning the equipment at the end of the internship.\n\n3. **Work Locations**: Interns have the option to work remotely, in the Louisville, KY office (for first-time/entry interns), or in the Washington D.C. office (for select advanced/returning interns).\n\n4. **Networking and Social Activities**: There will be multiple networking opportunities and a robust social committee structure for interns to get involved in various activities such as the intern yearbook, intern Olympics, volunteering, and well-being.\n\n5. **Daily Tools Used**: Common daily tools used at Humana include Microsoft Teams, Outlook, Zoom, and Azure DevOps.\n\n6. **Project Assignments**: Projects are assigned based on the intern's interests and skillset. If an intern is unhappy with their project, they should speak to their early career champion to find the best path forward.\n\n",
     #     "sources": "Page 2, Page 3, Page 4"
@@ -165,7 +174,8 @@ def process_prompt_route():
     file.save(file_path)
 
     try:
-        result = asyncio.run(process_prompt(file_id, file_path, file_type, prompt))
+        result = asyncio.run(process_prompt(
+            file_id, file_path, file_type, prompt))
         return jsonify(result), 200
     except (TypeError, ValueError) as e:
         logging.error(f"Processing error: {str(e)}")
@@ -177,12 +187,45 @@ def process_prompt_route():
         if os.path.exists(file_path):
             os.remove(file_path)
 
+
 @app.route('/api/reset', methods=['POST'])
 def reset_context():
     global vector_stores
-    vector_stores = {}
-    logging.debug("Vector stores have been reset.")
-    return jsonify({"message": "Conversation context has been reset."}), 200
+
+    logging.info("Initiating backend reset...")
+
+    # Clear in-memory vector stores
+    vector_stores.clear()
+    logging.info("In-memory vector stores cleared.")
+
+    try:
+        # Initialize a new Chroma client
+        client_settings = Settings(
+            allow_reset=True,
+            anonymized_telemetry=False
+        )
+        chroma_client = ChromaClient(settings=client_settings)
+
+        # Delete the existing collection if it exists
+        try:
+            chroma_client.delete_collection("langchain")
+            logging.info("Existing 'langchain' collection deleted.")
+        except ValueError:
+            logging.info("No existing 'langchain' collection found.")
+
+        # Create a new collection
+        chroma_client.create_collection("langchain")
+        logging.info("New 'langchain' collection created.")
+
+        # Reinitialize Chroma for use with LangChain
+        _ = Chroma(client=chroma_client, collection_name="langchain")
+        logging.info("Chroma database reset successfully.")
+
+        return jsonify({"message": "Backend reset successfully."}), 200
+    except Exception as e:
+        logging.error(f"Error during backend reset: {str(e)}")
+        return jsonify({"error": f"Failed to reset backend: {str(e)}"}), 500
+
 
 if __name__ == '__main__':
     app.run(port=5328)

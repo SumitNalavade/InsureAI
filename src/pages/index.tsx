@@ -95,10 +95,6 @@ function App() {
 
       return result
     },
-    onSuccess: () => {
-      setSelectedFile(null);
-      setConversations({});
-    },
     onError: (error) => {
       console.error('Error:', error);
     }
@@ -159,7 +155,10 @@ function App() {
             <div className='w-full h-full'>
               <button
                 className="btn rounded-xl md:w-full bg-white border-none text-black shadow-md hover:bg-gray-100 w-full h-full"
-                onClick={() => resetMutation.mutate()}
+                onClick={() => {
+                  resetMutation.mutate()
+                  setSelectedFile(null);
+                }}
               >
                 <FiPlus />
                 <p>New Chat</p>
@@ -169,7 +168,7 @@ function App() {
 
           {uploadedFiles.toReversed().map((elm, index) => (
             <div key={index} className="flex gap-2 justify-between items-center" onClick={() => setSelectedFile(elm)}>
-              <button className={`btn rounded-xl md:w-full bg-[#78BE20] text-white border-none shadow-md hover:bg-[#5C9A1B] ${selectedFile?.id !== elm.id ? 'bg-opacity-25' : ''}`}>
+              <button onClick={() => resetMutation.mutate()} className={`btn rounded-xl md:w-full bg-[#78BE20] text-white border-none shadow-md hover:bg-[#5C9A1B] ${selectedFile?.id !== elm.id ? 'bg-opacity-25' : ''}`}>
                 <p className='truncate'>{elm.file.name}</p>
               </button>
             </div>

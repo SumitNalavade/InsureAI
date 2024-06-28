@@ -1,21 +1,32 @@
-import os
 import asyncio
-import requests
-from typing import Any, Dict, List, Optional
 from flask import Flask, request, jsonify
+from flask_cors import CORS  # Import CORS
+import chainlit as cl
+import os
+import langchain
+import requests
+import unstructured
+from langchain_core.language_models.llms import LLM
+from typing import Any, Dict, Iterator, List, Mapping, Optional
+from langchain_core.callbacks.manager import CallbackManagerForLLMRun
+from langchain_core.outputs import GenerationChunk
+from chainlit.types import AskFileResponse
 from langchain.prompts import ChatPromptTemplate
+from langchain.schema import Document, StrOutputParser
 from langchain.chains import LLMChain, RetrievalQAWithSourcesChain
-from langchain.schema import Document
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 from langchain_community.document_loaders import UnstructuredExcelLoader
 from langchain.document_loaders import PDFPlumberLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from tempfile import NamedTemporaryFile
+from typing import List
+from chainlit.types import AskFileResponse
 import chromadb
 from chromadb.config import Settings
 from langchain.vectorstores import Chroma
 from langchain.vectorstores.base import VectorStore
-from langchain_core.language_models.llms import LLM
-from flask_cors import CORS  # Import CORS
+from langchain.schema.embeddings import Embeddings
+from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
+from langsmith import traceable
 import logging
 
 #logging.basicConfig(level=logging.DEBUG)
@@ -121,6 +132,7 @@ def process_file(file_path, file_type) -> List[Document]:
 
 
 def create_search_engine(docs: List[Document], embeddings) -> VectorStore:
+    print("SEARCH ENGINE START")
     client_settings = Settings(
         allow_reset=True,
         anonymized_telemetry=False
@@ -131,10 +143,38 @@ def create_search_engine(docs: List[Document], embeddings) -> VectorStore:
         embedding=embeddings,
         client_settings=client_settings
     )
+    # chroma_client = chromadb.PersistentClient(path="C:\\Users\\SKS3298\\OneDrive - Humana\\Desktop\\miniDB")
+    # chroma_collection = chroma_client.get_or_create_collection("quickstart")
+    # search_engine = VectorStore(chroma_collection=chroma_collection)
+    # print("SEARCH ENGINE END")
     return search_engine
+
+# def create_search_engine(*, docs: List[Document], embeddings: Embeddings) -> VectorStore:
+# 
+#     client = chromadb.EphemeralClient()
+#     client_settings=Settings(
+#         allow_reset=True,
+#         anonymized_telemetry=False
+#     )
+# 
+#     search_engine = Chroma(
+#         client=client,
+#         client_settings=client_settings
+#     )
+# 
+#     search_engine._client.reset()
+#     search_engine = Chroma.from_documents(
+#         client=client,
+#         documents=docs,
+#         embedding=embeddings,
+#         client_settings=client_settings
+#     )
+#     return search_engine
+
 
 
 async def process_prompt(file_path, file_type, prompt):
+    print("PROCESS START")
     docs = process_file(file_path, file_type)
     embeddings = FastEmbedEmbeddings(model_name="BAAI/bge-small-en")
     search_engine = create_search_engine(docs=docs, embeddings=embeddings)
@@ -156,6 +196,7 @@ async def process_prompt(file_path, file_type, prompt):
 
 @app.route('/api/process_prompt', methods=['POST'])
 def process_prompt_route():
+    print("START")
     # return jsonify({
     #     "answer": "Here are the key takeaways from the document:\n\n1. **Remote Internship Opportunities**: Humana has been offering remote internships since 2020 and ensures plenty of networking and engagement opportunities for interns to feel included and welcome.\n\n2. **Equipment Provided**: Interns will receive standard equipment including a laptop, monitor, connection cable, mouse, and keyboard. Return labels and boxes will be provided for returning the equipment at the end of the internship.\n\n3. **Work Locations**: Interns have the option to work remotely, in the Louisville, KY office (for first-time/entry interns), or in the Washington D.C. office (for select advanced/returning interns).\n\n4. **Networking and Social Activities**: There will be multiple networking opportunities and a robust social committee structure for interns to get involved in various activities such as the intern yearbook, intern Olympics, volunteering, and well-being.\n\n5. **Daily Tools Used**: Common daily tools used at Humana include Microsoft Teams, Outlook, Zoom, and Azure DevOps.\n\n6. **Project Assignments**: Projects are assigned based on the intern's interests and skillset. If an intern is unhappy with their project, they should speak to their early career champion to find the best path forward.\n\n",
     #     "sources": "Page 2, Page 3, Page 4"

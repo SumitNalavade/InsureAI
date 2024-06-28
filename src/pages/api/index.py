@@ -21,16 +21,16 @@ from flask_cors import CORS
 
 logging.basicConfig(level=logging.DEBUG)
 
-# AZURE_OPENAI_API_KEY = "8562072bb6dc4088aaeb5e7495a5ace3"
-# AZURE_OPENAI_ENDPOINT = "https://mlp-npe-hackathon-openai.openai.azure.com/"
-# AZURE_OPENAI_DEPLOYMENT_NAME = "mlp-genai-npe-gpt-4o-hackathon2024-7"
+AZURE_OPENAI_API_KEY = "8562072bb6dc4088aaeb5e7495a5ace3"
+AZURE_OPENAI_ENDPOINT = "https://mlp-npe-hackathon-openai.openai.azure.com/"
+AZURE_OPENAI_DEPLOYMENT_NAME = "mlp-genai-npe-gpt-4o-hackathon2024-7"
 
-# AZURE_OPENAI_COMPLETION_URL = f"{AZURE_OPENAI_ENDPOINT}openai/deployments/{AZURE_OPENAI_DEPLOYMENT_NAME}/chat/completions?api-version=2024-02-01"
+AZURE_OPENAI_COMPLETION_URL = f"{AZURE_OPENAI_ENDPOINT}openai/deployments/{AZURE_OPENAI_DEPLOYMENT_NAME}/chat/completions?api-version=2024-02-01"
 
 logging.basicConfig(level=logging.DEBUG)
 
-OPENAI_API_KEY = ""
-OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
+# OPENAI_API_KEY = ""
+# OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 
 # Global dictionary to hold the vector stores
 vector_stores = {}
@@ -40,13 +40,13 @@ CORS(app)
 
 
 class CustomLLM(LLM):
-    def _call(self, prompt: str, stop: Optional[List[str]] = None, run_manager: Optional[Any] = None, **kwargs: Any) -> str:
+    def _call(self, prompt: str, stop: Optional[List[str]] = None, run_manager: Optional[Any] = None,
+              **kwargs: Any) -> str:
         headers = {
             "Content-Type": "application/json",
-            "authorization": f"Bearer {OPENAI_API_KEY}"
+            "api-key": AZURE_OPENAI_API_KEY
         }
         request_data = {
-            "model": "gpt-4o",  # or whichever model you prefer
             "messages": [
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": prompt}
@@ -58,16 +58,16 @@ class CustomLLM(LLM):
             "presence_penalty": 0,
             "stop": stop
         }
-        response = requests.post(
-            OPENAI_API_URL, headers=headers, json=request_data)
+        logging.debug(f"Request Data: {request_data}")
+        response = requests.post(AZURE_OPENAI_COMPLETION_URL, headers=headers, json=request_data)
+        logging.debug(f"Response Status Code: {response.status_code}")
         if response.status_code == 200:
             data = response.json()
-            logging.debug(f"Received response from OpenAI API: {data}")
+            logging.debug(f"Received response from Azure OpenAI API: {data}")
             return data['choices'][0]['message']['content']
         else:
             logging.error(f"Error: {response.status_code} - {response.text}")
-            raise ValueError(
-                f"Error: {response.status_code} - {response.text}")
+            raise ValueError(f"Error: {response.status_code} - {response.text}")
 
     @property
     def _identifying_params(self) -> Dict[str, Any]:

@@ -29,7 +29,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 logging.basicConfig(level=logging.DEBUG)
 
-OPENAI_API_KEY = "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"
+OPENAI_API_KEY = ""
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 
 # Global dictionary to hold the vector stores

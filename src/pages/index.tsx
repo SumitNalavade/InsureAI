@@ -1,27 +1,24 @@
-import { FormEvent, useState, useRef, useEffect, MouseEvent } from 'react';
+import { FormEvent, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import Image from 'next/image';
 import { v4 as uuid } from 'uuid';
 import { FileUploader } from "react-drag-drop-files";
-import { FiPlus, FiTrash } from "react-icons/fi";
+import { FiPlus } from "react-icons/fi";
 
 import useAppStore from '../useAppStore';
-import { IConversation, IFile } from '@/utils/interfaces';
+import { IConversation } from '@/utils/interfaces';
 import Humana_Logo from "../assets/humana-logo.png";
 
 const fileTypes = ['PDF'];
 
 function App() {
-  const containerRef = useRef<HTMLDivElement>(null);
-
   const uploadedFiles = useAppStore(state => state.uploadedFiles);
   const setUploadedFiles = useAppStore(state => state.setUploadedFiles);
 
   const selectedFile = useAppStore(state => state.selectedFile);
   const setSelectedFile = useAppStore(state => state.setSelectedFile);
 
-  const [conversations, setConversations] = useState<IConversation[]>([])
-
+  const [conversations, setConversations] = useState<{ [key: string]: IConversation[] }>({});
   const [input, setInput] = useState('');
 
   const handleQuestionAsked = async (evt: FormEvent<HTMLFormElement>) => {
@@ -29,10 +26,11 @@ function App() {
     if (!selectedFile) return;
     const question: IConversation = { text: input, type: 'question' };
 
-    setConversations(conversations => [...conversations, question]);
+    const fileConversations = conversations[selectedFile.id] || [];
+    setConversations({ ...conversations, [selectedFile.id]: [...fileConversations, question] });
 
-    await mutation.mutate({ file: selectedFile?.file, question: question.text });
-  }
+    await mutation.mutate({ file: selectedFile.file, fileId: selectedFile.id, question: question.text });
+  };
 
   const handleFileUpload = async (file: File) => {
     const fileUrl = URL.createObjectURL(file);
@@ -45,26 +43,18 @@ function App() {
 
     setUploadedFiles([...uploadedFiles, newFile]);
     setSelectedFile(newFile);
-    setConversations([]);
-    setInput('');
+    setConversations({ ...conversations, [newFile.id]: [] }); // Initialize conversation for new file
   };
 
-  const handleFileDelete = (evt: MouseEvent<HTMLButtonElement>) => {    
-    evt.stopPropagation();
-    
-    console.log('Before:', { selectedFile, uploadedFiles });
-
-    setUploadedFiles(uploadedFiles.filter(elm => elm.id !== selectedFile?.id));
-
-    setSelectedFile(null);
-    setInput('');
-    setConversations([]);
-  }
+  const handleFileClick = (file) => {
+    setSelectedFile(file);
+  };
 
   const mutation = useMutation({
-    mutationFn: async ({ file, question }: { file: File, question: string }) => {
+    mutationFn: async ({ file, fileId, question }: { file: File, fileId: string, question: string }) => {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('file_id', fileId);  // Include file_id in the request
       formData.append('prompt', question);
 
       const response = await fetch('http://127.0.0.1:5328/api/process_prompt', {
@@ -77,27 +67,19 @@ function App() {
       }
 
       const result = await response.json();
-      return result;
+      return { result, fileId };
     },
-    onSuccess: (result) => {
+    onSuccess: (data) => {
+      const { result, fileId } = data;
       const answer: IConversation = { text: result.answer, type: 'answer' };
-      setConversations(conversations => [...conversations, answer]);
+      const fileConversations = conversations[fileId] || [];
+      setConversations({ ...conversations, [fileId]: [...fileConversations, answer] });
     },
     onError: (error) => {
-      // Handle error logic
       console.error('Error:', error);
     },
     onSettled: () => {
       setInput('');
-    }
-  });
-
-  useEffect(() => {
-    if (containerRef.current) {
-      containerRef.current.scrollTo({
-        top: containerRef.current.scrollHeight,
-        behavior: "smooth",
-      })
     }
   });
 
@@ -130,17 +112,6 @@ function App() {
         </div>
       </div>
 
-      { mutation.error && <div className="relative">
-        <div className="z-10 absolute top-0 left-0 w-full h-full"></div>
-
-        <div className="z-20 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 p-4 rounded-lg w-full max-w-xl">
-          <div className="alert alert-error">
-            <button onClick={() => mutation.reset()}><svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></button>
-            <p>Something went wrong, please try again later!</p>
-          </div>
-        </div>
-      </div> }
-
       <div className="flex w-full max-h-full h-full overflow-y-hidden">
         <div className="w-1/6 bg-gray-100 p-2 space-y-4">
           <div className="flex gap-2 justify-between items-center">
@@ -161,48 +132,41 @@ function App() {
             </div>
           </div>
 
-          {uploadedFiles.toReversed().map((elm, index) => (
-            <div key={index} className="flex gap-2 justify-between items-center" onClick={() => setSelectedFile(elm)}>
-              <button className={`btn rounded-xl md:w-full bg-[#78BE20] text-white border-none shadow-md hover:bg-[#5C9A1B] ${selectedFile?.id !== elm.id ? 'bg-opacity-25' : ''}`}>
+          {uploadedFiles.map((elm, index) => (
+            <div key={index} className="flex gap-2 justify-between items-center" onClick={() => handleFileClick(elm)}>
+              <button className={`btn rounded-xl md:w-full bg-[#78BE20] text-white border-none shadow-md hover:bg-gray-100 ${selectedFile?.id !== elm.id ? 'bg-opacity-25' : ''}`}>
                 <p className='truncate'>{elm.file.name}</p>
-                { selectedFile?.id === elm.id && <button onClick={handleFileDelete}><FiTrash /></button> }
               </button>
             </div>
           ))}
         </div>
 
-        <div className="w-2/6 bg-gray-100 border border-gray-300 border-y-0">
-          {selectedFile ? (<object data={selectedFile.url} type="application/pdf" width="100%" height="100%">
+        <div className="w-2/6 bg-white">
+          {selectedFile && <object data={selectedFile.url} type="application/pdf" width="100%" height="100%">
             <p>Alternative text - include a link <a href="https://www.clickdimensions.com/links/TestPDFfile.pdf">to the PDF!</a></p>
-          </object>) : (
-            <div className='w-full h-full flex justify-center items-center'>
-              <p>Upload a pdf to see it here!</p>
-            </div>
-          )}
+          </object>}
         </div>
 
         <div className="w-3/6 bg-gray-100 p-2 flex flex-col">
-          <div ref={containerRef} className="flex-grow overflow-y-auto">
-            {conversations.map((elm, index) => (
-              elm.type === 'question' ? (<div key={index} className={`chat chat-end`}>
-                <div className="chat-bubble bg-[#78BE20] bg-opacity-25 text-black">
-                  <p>{elm.text}</p>
+          <div className="flex-grow overflow-y-auto">
+            {selectedFile && (conversations[selectedFile.id] || []).map((elm, index) => (
+              elm.type === 'question' ? (
+                <div key={index} className={`chat chat-end`}>
+                  <div className="chat-bubble w-full bg-[#78BE20] bg-opacity-25 text-black">
+                    <p>{elm.text}</p>
+                  </div>
                 </div>
-              </div>) : (<div key={index} className={`chat chat-start`}>
-                <div className="chat-bubble bg-gray-200 text-black">
-                  <p>{elm.text}</p>
+              ) : (
+                <div key={index} className={`chat chat-start`}>
+                  <div className="chat-bubble w-full bg-gray-200 text-black">
+                    <p>{elm.text}</p>
+                  </div>
                 </div>
-              </div>)
+              )
             ))}
-
-            {mutation.isPending && (<div className='p-4'>
-              <span className="loading loading-dots loading-md text-gray-400"></span>
-            </div>)}
           </div>
-
           <form onSubmit={handleQuestionAsked} className="h-16 mt-2 flex justify-center input-group">
             <input placeholder="Ask me a question" value={input} onChange={(evt) => setInput(evt.target.value)} className="input max-w-3xl w-full mx-auto h-full bg-gray-200 focus:outline-none rounded-full focus:border-none" />
-
           </form>
         </div>
       </div>
@@ -213,7 +177,7 @@ function App() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 export default App;

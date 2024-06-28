@@ -22,7 +22,6 @@ const firebaseConfig = {
   appId: "1:827302285181:web:de7e812ff6bb9cc1408614"
 };
 
-
 const app = initializeApp(firebaseConfig);
 const storage = getStorage(app);
 
@@ -58,13 +57,14 @@ function App() {
 
     try {
       const blob = await getBlob(storageRef);
+      const file = new File([blob], `${searchInput}.pdf`, { type: blob.type });
 
       const fileUrl = URL.createObjectURL(blob);
 
       const newFile = {
         id: uuid(),
         url: fileUrl,
-        file: blob as File
+        file
       };
 
       reset();
@@ -136,6 +136,7 @@ function App() {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('prompt', question);
+      formData.append('name', file.n)
 
       const response = await fetch('http://127.0.0.1:5328/api/process_prompt', {
         method: 'POST',
